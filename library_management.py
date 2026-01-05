@@ -72,18 +72,16 @@ class User():
     membership : str | None = None
 
     async def user_info(self):
-        detail = {}
         for user in users:
             if user["user_id"] == self.user_id:
-                    detail = user
-        return detail
+                    return user
+        return {}
 
     async def verify_user(self):
-        user_exist = False
         for user in users:
             if user["user_id"] == self.user_id:
-                user_exist = True
-        return user_exist
+                return True
+        return False
 
     async def verify_user_return_book(self):
         total_borrowed_book = 0
@@ -101,12 +99,20 @@ class User():
         for transaction in transactions:
             if transaction["user_id"] == self.user_id:
                 total_borrowed = total_borrowed + 1
-                if transaction["fine_amount"] != 0:
-                    total_overdue = total_overdue + 1
-                    total_fines = total_fines + transaction["fine_amount"]
 
                 if transaction["returned_date"] == None:
                     currently_borrowed = currently_borrowed + 1
+
+                if transaction["returned_date"] != None:
+                    returned_date = datetime.date.fromisoformat(transaction["returned_date"])
+                    due_date = datetime.date.fromisoformat(transaction["due_date"])
+                    overdue_book = (returned_date-due_date).days
+
+                    if overdue_book > 0:
+                        total_overdue = total_overdue + 1
+                        total_fines = total_fines + transaction["fine_amount"]
+
+
         return {
             "Total Overdue" : total_overdue,
             "Total fines" : total_fines,
@@ -129,7 +135,7 @@ class Books(User):
     copies_total : int | None = None
     copies_available : int | None = None
 
-    async def update_book(self, inc = False,dcr = False):
+    async def update_book_inc_dcr(self, inc = False,dcr = False):
         for book in books:
             if book["book_id"] == self.book_id:
                 if dcr:
@@ -233,23 +239,20 @@ class Transactions(Books):
         return transactions 
     
     async def transaction_info(self):
-        t_info = {}
-
         for transaction in transactions:
             if transaction["transaction_id"] == self.transaction_id:
-                t_info = transaction
-        return t_info
+                return transaction
+        return {}
     
     async def verify_transaction(self):
-        borrowed_book_exist = False
         for borrowed_books in transactions:
             if borrowed_books['transaction_id'] == self.transaction_id and borrowed_books["book_id"] == self.book_id and borrowed_books["user_id"] == self.user_id:
-                borrowed_book_exist = True
+                return True
 
-        return borrowed_book_exist 
+        return False
     
 
-    async def update_transaction(self,returned_date, fine = None):
+    async def update_transaction_returndate_fine(self,returned_date, fine = None):
         for borrowed_books in transactions:
             if borrowed_books['transaction_id'] == self.transaction_id and borrowed_books["book_id"] == self.book_id and borrowed_books["user_id"] == self.user_id:
                 borrowed_books["returned_date"] = returned_date
@@ -268,7 +271,7 @@ class Transactions(Books):
                 if book["book_id"] == self.book_id and book["copies_available"] > 0:
                     book_exist = True
         if book_exist:
-            await self.update_book(dcr=True)
+            await self.update_book_inc_dcr(dcr=True)
 
             total_transaction = len(transactions) + 1
             detail = {
@@ -301,8 +304,8 @@ class Transactions(Books):
                     totalfine = number_of_days - 7
             else:
                 totalfine = number_of_days
-            await self.update_transaction((dates.date()).strftime('%Y-%m-%d'),fine=totalfine)
-            await self.update_book(inc=True)
+            await self.update_transaction_returndate_fine((dates.date()).strftime('%Y-%m-%d'),fine=totalfine)
+            await self.update_book_inc_dcr(inc=True)
         return f"Book Returned with fine:{totalfine}"
 
 async def main():
