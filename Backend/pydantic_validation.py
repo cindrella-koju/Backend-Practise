@@ -1,0 +1,42 @@
+# from datetime import datetime
+# from pydantic import BaseModel, PositiveInt, ValidationError
+
+# class User(BaseModel):
+#     id : int
+#     name : str
+#     joined_date : datetime
+
+# dummy_data = {
+#     'id' : 2,
+#     'name' : "dummy name", 
+#     'joined_date' : datetime.now()
+# }
+
+# try:
+#     User(**dummy_data)
+# except ValidationError as e:
+#     print(e.errors())
+
+
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+
+
+class Item(BaseModel):
+    id: str
+    value: str
+
+
+class Message(BaseModel):
+    message: str
+
+
+app = FastAPI()
+
+
+@app.get("/items/{item_id}", response_model=Item, responses={404: {"model": Message}})
+async def read_item(item_id: str):
+    if item_id == "foo":
+        return {"id": "foo", "value": "there goes my hero"}
+    return JSONResponse(status_code=404, content={"message": "Item not found"})
